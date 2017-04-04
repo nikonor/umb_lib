@@ -8,6 +8,7 @@ import (
 
 func TestReadConf(t *testing.T) {
 	conf := ReadConf("")
+	fmt.Printf("%v\n", conf)
 
 	cases := []struct{ key, want string }{
 		{"DBUSER", "tamaex"},

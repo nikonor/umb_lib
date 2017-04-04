@@ -28,7 +28,7 @@ func T2D(d time.Time) string {
 	return d.Format("02.01.2006")
 }
 
-// читаем конфиг. По умолчанию default_filename="/home/www/numb/cgi-bin/main/config.txt"
+// читаем конфиг. По умолчанию default_filename
 func ReadConf(filename string) map[string]string {
 	Config := make(map[string]string)
 
@@ -46,23 +46,6 @@ func ReadConf(filename string) map[string]string {
 		}
 	}
 	return Config
-}
-
-// Получаем конфиг для отправки почты
-func GetEMailConf(conf map[string]string, key string) (ret map[string]string, err error) {
-
-	err = json.Unmarshal([]byte(conf[strings.ToUpper(key)]), &ret)
-
-	return ret, err
-}
-
-// парсинг данный для SMTP из конфига
-func ParseConfEmail(data string) map[string]string {
-	smtp_server_conf := make(map[string]string)
-	err := json.Unmarshal([]byte(data), &smtp_server_conf)
-	Check_err(err, 1)
-
-	return smtp_server_conf
 }
 
 func addConf(C map[string]string, row string, suffix string) {
@@ -83,6 +66,23 @@ func addConf(C map[string]string, row string, suffix string) {
 			C[strings.ToUpper(parts[0])+suffix] = parts[1]
 		}
 	}
+}
+
+// Получаем конфиг для отправки почты
+func GetEMailConf(conf map[string]string, key string) (ret map[string]string, err error) {
+
+	err = json.Unmarshal([]byte(conf[strings.ToUpper(key)]), &ret)
+
+	return ret, err
+}
+
+// парсинг данный для SMTP из конфига
+func ParseConfEmail(data string) map[string]string {
+	smtp_server_conf := make(map[string]string)
+	err := json.Unmarshal([]byte(data), &smtp_server_conf)
+	Check_err(err, 1)
+
+	return smtp_server_conf
 }
 
 // Функция для обработки ошибок. Если t=1, то panic, иначе просто выводим сообщение об ошибке
