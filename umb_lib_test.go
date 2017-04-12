@@ -11,7 +11,7 @@ func TestReadConf(t *testing.T) {
 	fmt.Printf("%v\n", conf)
 
 	cases := []struct{ key, want string }{
-		{"DBUSER", "tamaex"},
+		{"DBUSER", "nikonor"},
 		{"QWE", ""},
 		{"", ""},
 	}
@@ -66,3 +66,22 @@ func TestRound(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateEmail (t *testing.T) {
+        cases := []struct {
+                email string
+                want bool
+        }{
+                {"nikonor@nikonor.ru",true},
+                {"nikonor@nikonor",false},
+                {"nikonor@nikonor.msk.ru",true},
+                {"nikonor.jr@nikonor.msk.ru",true},
+        }
+
+        for _,c := range cases {
+                if ValidateEmail(c.email) != c.want {
+                        t.Errorf("Error on ValidateEmail for email=%s",c.email)
+                }
+        }
+}
+

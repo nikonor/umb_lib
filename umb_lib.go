@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"regexp"
 )
 
 const (
@@ -129,4 +130,11 @@ func GetValueByName(v interface{}, field string) interface{} {
 func SetValueByName(v interface{}, field string, newval interface{}) {
 	r := reflect.ValueOf(v).Elem().FieldByName(field)
 	r.Set(reflect.ValueOf(newval))
+}
+
+// Проверка email на валидность. Тупая, конечно.
+func ValidateEmail(email string) bool {
+    email = strings.ToLower(email)
+    Re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+    return Re.MatchString(email)
 }
