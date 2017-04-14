@@ -1,19 +1,32 @@
 package umb_lib
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/gomail.v2"
 	"io/ioutil"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
-	"regexp"
 )
 
 const (
 	default_filename = "./config.txt"
 )
+
+type AttachFile struct {
+	Name string
+	Body []byte
+}
+
+type AttachDoc struct {
+	Doc_id int64
+	Name   string
+	Type   int64
+}
 
 func ToPrettyNameForm(s string) string {
 	return strings.Title(strings.ToLower(s))
@@ -134,7 +147,101 @@ func SetValueByName(v interface{}, field string, newval interface{}) {
 
 // Проверка email на валидность. Тупая, конечно.
 func ValidateEmail(email string) bool {
-    email = strings.ToLower(email)
-    Re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
-    return Re.MatchString(email)
+	email = strings.ToLower(email)
+	Re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	return Re.MatchString(email)
+}
+
+// Проверка сущестования файла "/tmp/<name>.pid"
+// Если он есть, то возвращаем  true
+// Если его нет, то создаем, записываем PID и возвращаем false
+func CheckPidFile(name string) bool {
+	var (
+		PidFile *os.File
+		err     error
+	)
+	pidfilename := fmt.Sprintf("/tmp/%s.pid", name)
+	PidFile, err = os.Open(pidfilename)
+	if err != nil {
+		PidFile, err = os.Create(pidfilename)
+		defer PidFile.Close()
+		if err != nil {
+			panic(err)
+		}
+		if PidFile.WriteString(fmt.Sprintf("%d\n", os.Getpid())); err != nil {
+			panic(err)
+		}
+		return false
+	}
+	return true
+}
+
+// Отправка письма через SMTP
+// параметр id может быть любым, но лучше случайным или id какоей-либо таблицы
+func SendEMail(id int64, smtp_conf map[string]string, from, to, subj, body string, selfcopy bool, attachefiles []AttachFile, attachedocs []AttachDoc) error {
+	var (
+		pdf      string
+		err      error
+		array_to []string
+	)
+
+	// конвертируем To в массив
+	for _, t := range strings.Split(to, ",") {
+		array_to = append(array_to, strings.TrimSpace(t))
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", from)
+	m.SetHeader("To", array_to...)
+	if selfcopy {
+		m.SetAddressHeader("Bcc", from, "")
+	}
+	m.SetHeader("Subject", subj)
+	m.SetBody("text/html", body)
+
+	for _, f := range attachefiles {
+		if f.Body != nil {
+			tmpfilename := fmt.Sprintf("%s", f.Name)
+			if err = ioutil.WriteFile(tmpfilename, []byte(f.Body), 0644); err != nil {
+				return err
+			}
+		}
+		m.Attach(f.Name)
+	}
+
+	for _, d := range attachedocs {
+		pdf, err = GetPDF(d.Doc_id, d.Type, id, d.Name)
+		if err != nil {
+			return err
+		}
+		m.Attach(pdf)
+	}
+
+	d := gomail.NewDialer(smtp_conf["smtp"], 587, smtp_conf["login"], smtp_conf["password"])
+	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+
+	// Чистим все лишние файлы.
+	os.Remove(pdf)
+	for _, f := range attachefiles {
+		if f.Body != nil {
+			os.Remove(f.Name)
+		}
+	}
+
+	return nil
+}
+
+func GetPDF(doc_id, type_id, mail_id int64, filename string) (string, error) {
+	tmpfilename := fmt.Sprintf("%s/mail%d/%s", os.TempDir(), mail_id, filename)
+	// pdf, err := exec.Command(fmt.Sprintf("%s/print.pl", default_print_pl_path), fmt.Sprintf("%s_id=%d", TypeRel[type_id], doc_id), fmt.Sprintf("do_what=%s", TypeRel[type_id]), "pdf=1", "podp=1").Output()
+	// if err != nil {
+	// 	return "", err
+	// }
+	// if err = ioutil.WriteFile(tmpfilename, pdf, 0644); err != nil {
+	// 	return "", err
+	// }
+	return tmpfilename, nil
 }
